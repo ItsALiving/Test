@@ -5,7 +5,7 @@ bl_info = {
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar",
     "description": "Addon that updates itself via the internet.",
-    "category": "Development",
+    "category": "Developments",
 }
 
 import bpy
