@@ -5,15 +5,15 @@ bl_info = {
     "blender": (3, 0, 0),
     "location": "View3D > Sidebar",
     "description": "Addon that updates itself via the internet.",
-    "category": "Developments",
+    "category": "Development",
 }
 
 import bpy
 import urllib.request
 import os
 
-REMOTE_VERSION_URL = "https://example.com/my_addon/version.txt"
-REMOTE_ADDON_URL = "https://example.com/my_addon/__init__.py"
+REMOTE_VERSION_URL = "https://github.com/ItsALiving/Test/blob/main/version.xtx"
+REMOTE_ADDON_URL = "https://github.com/ItsALiving/Test/blob/main/__init__.py"
 
 def get_current_version():
     return bl_info.get('version', (0, 0, 0))
