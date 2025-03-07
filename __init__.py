@@ -3,24 +3,26 @@ bl_info = {
     "author": "Your Name",
     "version": (0, 8, 6),
     "blender": (3, 0, 0),
-    "location": "View3D > Sidebar",
     "description": "Addon that updates itself via the internet.",
+    "location": "View3D > Sidebar",
     "category": "Development",
 }
 
 import bpy
 import urllib.request
 import os
+import time
 
 REMOTE_VERSION_URL = "https://raw.githubusercontent.com/ItsALiving/Test/main/version.txt"
 REMOTE_ADDON_URL = "https://raw.githubusercontent.com/ItsALiving/Test/main/__init__.py"
 
 def get_current_version():
-    return bl_info.get('version', (0, 0, 0))
+    return bpy.context.preferences.addons[__name__].bl_info.get('version', (0, 0, 0))
 
 def get_remote_version():
     try:
-        with urllib.request.urlopen(REMOTE_VERSION_URL) as response:
+        url = f"{REMOTE_VERSION_URL}?t={int(time.time())}"  # prevent caching
+        with urllib.request.urlopen(url) as response:
             version = response.read().decode('utf-8').strip()
             return tuple(map(int, version.split('.')))
     except Exception as e:
@@ -34,56 +36,91 @@ def check_for_update():
         return True, remote_version
     return False, current_version
 
+def get_current_version():
+    return bl_info.get('version', (0, 0, 0))
+
 def perform_update():
     try:
-        with urllib.request.urlopen(REMOTE_ADDON_URL) as response:
-            addon_content = response.read()
+        url = f"{REMOTE_ADDON_URL}?t={int(time.time())}"  # prevent caching
+        with urllib.request.urlopen(url) as response:
+            addon_script = response.read()
 
-            addon_folder = os.path.dirname(os.path.abspath(__file__))
-            init_file = os.path.join(addon_folder, "__init__.py")
+        addon_folder = os.path.dirname(os.path.abspath(__file__))
+        init_file = os.path.join(addon_folder, "__init__.py")
 
-            with open(init_file, 'wb') as f:
-                f.write(addon_content)
-            print("Addon updated successfully.")
-            return True
+        with open(init_file, 'wb') as file:
+            file.write(addon_script)
+        return True
+
     except Exception as e:
         print("Addon update failed:", e)
     return False
 
-class SELFUPDATER_OT_Update(bpy.types.Operator):
-    bl_idname = "selfupdater.update_addon"
-    bl_label = "Update Addon"
-    bl_description = "Checks for addon updates online"
+REMOTE_ADDON_URL = "https://example.com/my_addon/__init__.py"
+
+class MYADDON_OT_Self_Update(bpy.types.Operator):
+    bl_idname = "myaddon.self_update"
+    bl_label = "Check and Update Addon"
 
     def execute(self, context):
         has_update, new_version = check_for_update()
         if has_update:
             if perform_update():
-                self.report({'INFO'}, f"Addon updated to {new_version}. Restart Blender to apply.")
+                self.report({'INFO'}, f"Addon updated to version {new_version}. Restart Blender.")
             else:
                 self.report({'ERROR'}, "Update failed.")
         else:
             self.report({'INFO'}, "Addon already up to date.")
         return {'FINISHED'}
 
-class SELFUPDATER_PT_Panel(bpy.types.Panel):
+class MYADDON_PT_Panel(bpy.types.Panel):
     bl_label = "Self-Updater"
-    bl_idname = "SELFUPDATER_PT_Panel"
+    bl_idname = "MYADDON_PT_self_updater"
     bl_space_type = 'VIEW_3D'
     bl_region_type = 'UI'
     bl_category = "Updater"
 
     def draw(self, context):
         layout = self.layout
-        layout.operator("selfupdater.update_addon")
+        layout.operator("myaddon.self_update", icon="FILE_REFRESH")
+
+class MYADDON_OT_SelfUpdate(bpy.types.Operator):
+    bl_idname = "myaddon.self_update"
+    bl_label = "Update Addon"
+    bl_description = "Check online and update addon"
+
+    def execute(self, context):
+        has_update, new_version = check_for_update()
+        if has_update:
+            if perform_update():
+                self.report({'INFO'}, f"Addon updated to version {new_version}. Restart Blender.")
+            else:
+                self.report({'ERROR'}, "Update failed.")
+        else:
+            self.report({'INFO'}, "Addon already up to date.")
+        return {'FINISHED'}
 
 def register():
-    bpy.utils.register_class(SELFUPDATER_OT_Update)
-    bpy.utils.register_class(SELFUPDATER_PT_Panel)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_OT_SelfUpdate)
+    bpy.utils.register_class(MYADDON_OT_SelfUpdate)
+
+classes = [MYADDON_OT_Self_Update, MYADDON_PT_Panel]
+
+def register():
+    bpy.utils.register_class(MYADDON_OT_Self_Update)
+    bpy.utils.register_class(MYADDON_PT_Panel)
 
 def unregister():
-    bpy.utils.unregister_class(SELFUPDATER_OT_Update)
-    bpy.utils.unregister_class(SELFUPDATER_PT_Panel)
+    bpy.utils.unregister_class(MYADDON_OT_Self_Update)
+    bpy.utils.unregister_class(MYADDON_PT_Panel)
 
 if __name__ == "__main__":
     register()
