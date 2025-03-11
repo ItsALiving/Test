@@ -60,7 +60,7 @@ class CheckForUpdateOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 class UpdateNowOperator(bpy.types.Operator):
-    """Download the latest __init__.py and overwrite the current file."""
+    """Download the latest __init__.py, overwrite the current file, and update the version number."""
     bl_idname = "addon.update_now"
     bl_label = "Update Now"
 
@@ -72,6 +72,14 @@ class UpdateNowOperator(bpy.types.Operator):
             self.report({'ERROR'}, f"Failed to fetch update: {e}")
             return {'CANCELLED'}
 
+        try:
+            with urllib.request.urlopen(REMOTE_VERSION_URL) as response:
+                remote_version_str = response.read().decode("utf-8").strip()
+            remote_version = tuple(map(int, remote_version_str.split(".")))
+        except Exception as e:
+            remote_version = None
+            self.report({'WARNING'}, f"Failed to fetch remote version: {e}")
+
         addon_file = __file__
         try:
             with open(addon_file, "w", encoding="utf-8") as f:
@@ -80,7 +88,13 @@ class UpdateNowOperator(bpy.types.Operator):
             self.report({'ERROR'}, f"Failed to write update: {e}")
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "Update applied. Please restart Blender for changes to take effect.")
+        if remote_version:
+            bl_info["version"] = remote_version
+
+        self.report(
+            {'INFO'},
+            f"Update applied to version: {'.'.join(map(str, bl_info['version']))}. Please restart Blender for changes to take effect."
+        )
         return {'FINISHED'}
 
 # ------------------ Existing Functionality ------------------
