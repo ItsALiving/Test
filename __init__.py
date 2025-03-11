@@ -6,7 +6,7 @@ bl_info = {
         "joins selected objects, and can delete all changes added with the add-on."
     ),
     'author': 'ItsALiving',
-    'version': (0, 8, 6),
+    'version': (0, 8, 6),  # Local version tuple
     'blender': (4, 0, 0),
     'location': 'View3D > UI > Quick Gun Setup',
     'warning': '',
@@ -14,35 +14,78 @@ bl_info = {
     'tracker_url': '',
     'support': 'COMMUNITY',
     'category': 'User Interface',
-    # Updater keys – update these with your repo details:
-    'github_repo': 'ItsALiving/QuickGunSetup',
-    'github_release_tag': 'v0.8.6',
-    'github_raw_url': 'https://raw.githubusercontent.com/ItsALiving/QuickGunSetup/main/'
+    # Updater settings (used below)
+    'github_repo': 'ItsALiving/Test',
+    'github_raw_url': 'https://raw.githubusercontent.com/ItsALiving/Test/main/',
+    'version_txt': 'version.txt'
 }
 
 import math
 import bpy
 import mathutils
+import os
+import urllib.request
 
-# Try to import the updater module (e.g., addon_updater_ops)
-try:
-    import addon_updater_ops
-except ImportError:
-    addon_updater_ops = None
-    print("Online updater disabled: addon_updater_ops not found.")
+# Global URLs for the updater
+REMOTE_INIT_URL = "https://raw.githubusercontent.com/ItsALiving/Test/main/__init__.py"
+REMOTE_VERSION_URL = "https://raw.githubusercontent.com/ItsALiving/Test/main/version.txt"
 
-# ---------------------------------------------------------------------------
-# Remove Existing QGS Data
-# ---------------------------------------------------------------------------
+# ------------------ Online Updater Operators ------------------
+
+class CheckForUpdateOperator(bpy.types.Operator):
+    """Check remote version and report if an update is available."""
+    bl_idname = "addon.check_for_update"
+    bl_label = "Check for Update"
+
+    def execute(self, context):
+        try:
+            with urllib.request.urlopen(REMOTE_VERSION_URL) as response:
+                remote_version_str = response.read().decode("utf-8").strip()
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to fetch remote version: {e}")
+            return {'CANCELLED'}
+
+        try:
+            # Assume version.txt is in the format: 0.8.7
+            remote_version = tuple(map(int, remote_version_str.split(".")))
+        except Exception as e:
+            self.report({'ERROR'}, f"Invalid version format in remote version file: {e}")
+            return {'CANCELLED'}
+
+        local_version = bl_info.get("version", (0, 0, 0))
+        if remote_version > local_version:
+            self.report({'INFO'}, f"Update available: {remote_version_str} (Local: {'.'.join(map(str, local_version))})")
+        else:
+            self.report({'INFO'}, "No update available.")
+        return {'FINISHED'}
+
+class UpdateNowOperator(bpy.types.Operator):
+    """Download the latest __init__.py and overwrite the current file."""
+    bl_idname = "addon.update_now"
+    bl_label = "Update Now"
+
+    def execute(self, context):
+        try:
+            with urllib.request.urlopen(REMOTE_INIT_URL) as response:
+                new_code = response.read().decode("utf-8")
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to fetch update: {e}")
+            return {'CANCELLED'}
+
+        addon_file = __file__
+        try:
+            with open(addon_file, "w", encoding="utf-8") as f:
+                f.write(new_code)
+        except Exception as e:
+            self.report({'ERROR'}, f"Failed to write update: {e}")
+            return {'CANCELLED'}
+
+        self.report({'INFO'}, "Update applied. Please restart Blender for changes to take effect.")
+        return {'FINISHED'}
+
+# ------------------ Existing Functionality ------------------
+
 def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
-    """
-    Remove QGS changes:
-      - QGS_ vertex groups
-      - QGS_Armature modifiers
-      - QGS ARMATURE objects
-      - leftover QGS_ armature data blocks
-      - optionally remove or keep QGS MESH objects.
-    """
     print("DEBUG: Starting remove_existing_vertex_groups_modifiers_and_armature()...")
 
     removed_vgroups = 0
@@ -51,7 +94,6 @@ def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
     removed_QGS_armature_objs = 0
     removed_armature_datas = 0
 
-    # 1) Remove QGS_ vertex groups & QGS_Armature modifiers from all MESHes
     all_meshes = [obj for obj in bpy.data.objects if obj.type == 'MESH']
     for mesh in all_meshes:
         for group in list(mesh.vertex_groups):
@@ -71,7 +113,6 @@ def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
                 except ReferenceError:
                     pass
 
-    # 2) Remove QGS armature objects
     QGS_armature_objects = [obj for obj in bpy.data.objects if obj.type == 'ARMATURE' and obj.get("QGS", False)]
     for arm_obj in QGS_armature_objects:
         try:
@@ -89,7 +130,6 @@ def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
         except ReferenceError:
             pass
 
-    # 3) Decide whether to remove or keep QGS mesh objects
     QGS_meshes = [obj for obj in bpy.data.objects if obj.type == 'MESH' and obj.get("QGS", False)]
     if keep_QGS_mesh:
         for mesh_obj in QGS_meshes:
@@ -105,7 +145,6 @@ def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
             except ReferenceError:
                 pass
 
-    # 4) Remove leftover QGS_ armature data blocks
     for arm_data in list(bpy.data.armatures):
         if arm_data.name.startswith("QGS_"):
             try:
@@ -124,12 +163,6 @@ def remove_existing_vertex_groups_modifiers_and_armature(keep_QGS_mesh=True):
     print(f"       QGS Mesh Objects removed: {removed_QGS_meshes} (only if keep_QGS_mesh=False)")
 
 def count_QGS_changes():
-    """
-    Return the total count of QGS-related items:
-      - Objects with a QGS property
-      - QGS_ vertex groups and QGS_Armature modifiers on meshes
-      - QGS_ armature data blocks
-    """
     total_changes = 0
     for obj in bpy.data.objects:
         if obj.get("QGS", False):
@@ -507,9 +540,8 @@ class RotateBonesZReverseOperator(RotateBoneOperator):
         self.reverse = True
         return super().execute(context)
     
-# ---------------------------------------------------------------------------
-# JoinObjectsOperator: Joins selected mesh objects and marks the resulting object as QGS.
-# ---------------------------------------------------------------------------
+# ------------------ Join and Separate Operators ------------------
+
 class JoinObjectsOperator(bpy.types.Operator):
     """Join selected mesh objects, rename the joined object, and mark it as QGS."""
     bl_idname = "object.join_objects"
@@ -535,9 +567,6 @@ class JoinObjectsOperator(bpy.types.Operator):
             self.report({'INFO'}, "No joined object found.")
         return {'FINISHED'}
 
-# ---------------------------------------------------------------------------
-# SeparateVertexGroupsOperator: Separates the active mesh into separate objects based on its vertex groups.
-# ---------------------------------------------------------------------------
 class SeparateVertexGroupsOperator(bpy.types.Operator):
     """
     Separates the active mesh into separate objects based on its vertex groups,
@@ -630,8 +659,6 @@ class SeparateVertexGroupsOperator(bpy.types.Operator):
         return {'FINISHED'}
 
 def is_QGS_mesh(obj):
-    """Return True if the mesh object has QGS vertex groups or a QGS armature modifier,
-    or is explicitly flagged with a QGS property."""
     if obj.type != 'MESH':
         return False
     if obj.get("QGS", False):
@@ -644,10 +671,6 @@ def is_QGS_mesh(obj):
             return True
     return False
 
-# ---------------------------------------------------------------------------
-# UnlinkAddonOperator: Re-joins QGS-affected meshes, then restores the backup mesh data if available,
-# and cleans up all QGS-related data.
-# ---------------------------------------------------------------------------
 class UnlinkAddonOperator(bpy.types.Operator):
     """Delete all changes made with the add-on.
        Re-joins QGS-affected meshes (even if only one exists),
@@ -774,7 +797,8 @@ class DialogMessage(bpy.types.Operator):
     def draw(self, context):
         self.layout.label(text=self.message)
 
-# Updated Panel: label changed from "Quick Gun Rig" to "Quick Rig"
+# ------------------ Panel ------------------
+
 class ArmatureToolsPanel(bpy.types.Panel):
     bl_label = "Quick Rig"
     bl_idname = "OBJECT_PT_quick_rig"
@@ -846,11 +870,13 @@ class ArmatureToolsPanel(bpy.types.Panel):
         layout.label(text=f"Will remove {QGS_count} QGS changes.")
         layout.operator("object.unlink_addon", text="Delete All Made By User")
 
-        # --- New Updater Section ---
+        # --- Updater Section ---
         layout.separator()
-        layout.label(text="Addon Updater", icon='FILE_REFRESH')
-        layout.operator("addon_updater.check_for_update", text="Check for Update", icon='FILE_REFRESH')
-        layout.operator("addon_updater.update_now", text="Update Now", icon='FILE_TICK')
+        layout.label(text="Online Updater", icon='FILE_REFRESH')
+        layout.operator("addon.check_for_update", text="Check for Update", icon='FILE_REFRESH')
+        layout.operator("addon.update_now", text="Update Now", icon='FILE_TICK')
+
+# ------------------ Registration ------------------
 
 classes = [
     ArmatureAndVertexGroupsOperator,
@@ -871,6 +897,8 @@ classes = [
     RotateBonesYReverseOperator,
     RotateBonesZReverseOperator,
     ArmatureToolsPanel,
+    CheckForUpdateOperator,
+    UpdateNowOperator,
 ]
 
 def register():
@@ -895,20 +923,12 @@ def register():
     for cls in classes:
         bpy.utils.register_class(cls)
 
-    # Register the updater if available
-    if addon_updater_ops:
-        addon_updater_ops.register(bl_info)
-
 def unregister():
     del bpy.types.Scene.set_inverse_child_of
     del bpy.types.Scene.join_objects_name
     del bpy.types.Scene.qgs_rotation_angle
     for cls in reversed(classes):
         bpy.utils.unregister_class(cls)
-
-    # Unregister the updater if available
-    if addon_updater_ops:
-        addon_updater_ops.unregister()
 
 if __name__ == "__main__":
     register()
