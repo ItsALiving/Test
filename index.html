@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Care Notes Tracker</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <h1>Care Notes Tracker</h1>
+      <p>Record daily care events quickly and generate a professional shift summary.</p>
+    </header>
+
+    <section class="panel" aria-labelledby="entry-form-title">
+      <h2 id="entry-form-title">Add Care Note</h2>
+      <form id="entry-form" novalidate>
+        <div class="form-row two-col">
+          <div class="field">
+            <label for="entry-time">Time</label>
+            <input type="time" id="entry-time" name="time" required />
+          </div>
+
+          <div class="field">
+            <label for="entry-category">Category</label>
+            <select id="entry-category" name="category" required>
+              <option value="">Select category</option>
+              <option>Wake Up</option>
+              <option>Breakfast</option>
+              <option>Lunch</option>
+              <option>Dinner</option>
+              <option>Snack</option>
+              <option>Medication</option>
+              <option>Hygiene</option>
+              <option>Shower/Bath</option>
+              <option>Brushed Teeth</option>
+              <option>Got Dressed</option>
+              <option>Relaxing</option>
+              <option>TV</option>
+              <option>Computer</option>
+              <option>Reading</option>
+              <option>Outing</option>
+              <option>Staff Pickup</option>
+              <option>Returned Home</option>
+              <option>Mood</option>
+              <option>Behavior</option>
+              <option>Health</option>
+              <option>Other</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="field">
+          <label for="entry-title">Short Title</label>
+          <input
+            type="text"
+            id="entry-title"
+            name="title"
+            maxlength="120"
+            placeholder="Example: Morning medication administered"
+            required
+          />
+        </div>
+
+        <div class="field">
+          <label for="entry-note">Detailed Note</label>
+          <textarea
+            id="entry-note"
+            name="note"
+            rows="4"
+            placeholder="Enter observations, support provided, response to care, and anything notable."
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="submit" id="save-button">Add Entry</button>
+          <button type="button" id="cancel-edit" class="secondary" hidden>Cancel Edit</button>
+        </div>
+        <p id="form-message" class="form-message" aria-live="polite"></p>
+      </form>
+    </section>
+
+    <section class="panel" aria-labelledby="timeline-title">
+      <div class="panel-header">
+        <h2 id="timeline-title">Timeline</h2>
+        <span id="entry-count" class="entry-count">0 entries</span>
+      </div>
+      <ul id="entries-list" class="entries-list" aria-live="polite"></ul>
+      <p id="empty-state" class="empty-state">No entries yet. Add the first note to begin documentation.</p>
+    </section>
+
+    <section class="panel" aria-labelledby="summary-title">
+      <div class="panel-header stacked-mobile">
+        <h2 id="summary-title">Daily Summary</h2>
+        <button type="button" id="generate-summary" class="secondary">Generate Summary</button>
+      </div>
+      <textarea
+        id="summary-output"
+        class="summary-output"
+        rows="8"
+        readonly
+        placeholder="Generated summary will appear here."
+      ></textarea>
+    </section>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>
